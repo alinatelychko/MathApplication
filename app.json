@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MathApp",
-    "slug": "MathApp",
+    "slug": "math-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,7 +12,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.alinatelychko.mathapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,6 +23,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5781a4cb-21b5-4b13-b7fd-f67657e508ee"
+      }
+    },
+    "owner": "alinatelychko"
   }
 }

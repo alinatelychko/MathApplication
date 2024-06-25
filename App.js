@@ -1,20 +1,25 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+// import firebase from '@react-native-firebase/app';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import CategoryScreen from './components/CategoryScreen';
+import TestScreen from './components/TestScreen';
+import QuestionScreen from './components/QuestionScreen';
+import ResultScreen from './components/ResultScreen';
 
-export default function App() {
+const Stack = createNativeStackNavigator();
+
+const App = () => {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="CategoryScreen">
+        <Stack.Screen name="CategoryScreen" component={CategoryScreen} />
+        <Stack.Screen name="TestScreen" component={TestScreen} />
+        <Stack.Screen name="QuestionScreen" component={QuestionScreen} />
+        <Stack.Screen name="ResultScreen" component={ResultScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default App;
