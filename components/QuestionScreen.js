@@ -1,138 +1,119 @@
-import React, { useState } from 'react';
-import { View, Text, Button, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Button } from 'react-native';
+import { fetchQuestionsByTest, fetchAnswersByQuestion } from '../api';
 import ProgressIndicator from './ProgressIndicator';
 
 const QuestionScreen = ({ route, navigation }) => {
   const { test } = route.params;
+  const [questions, setQuestions] = useState([]);
+  const [answersMap, setAnswersMap] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
+  const [selectedAnswerId, setSelectedAnswerId] = useState(null);
   const [score, setScore] = useState(0);
 
-  const currentQuestion = test.questions[currentQuestionIndex];
+  useEffect(() => {
+    fetchQuestionsByTest(test.id)
+        .then(async (questionsData) => {
+          setQuestions(questionsData);
 
-  const handleAnswerSelection = (selectedOption) => {
-    setSelectedAnswer(selectedOption);
-    if (selectedOption === currentQuestion.correctAnswer) {
-      setScore(score + 1);
+          const map = {};
+          for (const q of questionsData) {
+            try {
+              const answers = await fetchAnswersByQuestion(q.id);
+              map[q.id] = answers;
+            } catch {
+              map[q.id] = [];
+            }
+          }
+          setAnswersMap(map);
+          setLoading(false);
+        })
+        .catch(e => {
+          setError(e.message);
+          setLoading(false);
+        });
+  }, [test]);
+
+  if (loading) return <ActivityIndicator style={styles.centered} size="large" />;
+  if (error) return <Text style={styles.centered}>Error: {error}</Text>;
+
+  if (questions.length === 0) return <Text style={styles.centered}>No questions found.</Text>;
+
+  const currentQuestion = questions[currentQuestionIndex];
+  const answers = answersMap[currentQuestion.id] || [];
+
+  const onAnswerSelect = (answer) => {
+    setSelectedAnswerId(answer.id);
+    if (answer.correct) {
+      setScore(prev => prev + 1);
     }
   };
 
-  const handleNextQuestion = () => {
-    setSelectedAnswer(null);
-    setShowAdditionalInfo(false);
-    if (currentQuestionIndex < test.questions.length - 1) {
+  const onNext = () => {
+    setSelectedAnswerId(null);
+    if (currentQuestionIndex + 1 < questions.length) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      navigation.navigate('ResultScreen', { score, total: test.questions.length });
+      // Перехід на екран результатів
+      navigation.navigate('ResultScreen', { score, total: questions.length });
     }
-  };
-
-  const handleIndicatorPress = (index) => {
-    setCurrentQuestionIndex(index);
-    setSelectedAnswer(null);
-    setShowAdditionalInfo(false);
   };
 
   return (
-    <View style={styles.container}>
-      <ProgressIndicator
-        currentQuestionIndex={currentQuestionIndex}
-        totalQuestions={test.questions.length}
-        onPress={handleIndicatorPress}
-      />
-      <View style={styles.questionContainer}>
-        <Text style={styles.questionText}>{currentQuestion.questionText}</Text>
-      </View>
-      {currentQuestion.options ? (
-        currentQuestion.options.map((option, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.optionButton,
-              selectedAnswer === option ? styles.selectedOption : null,
-            ]}
-            onPress={() => handleAnswerSelection(option)}
-            disabled={selectedAnswer !== null}
-          >
-            <Text style={styles.optionText}>{option}</Text>
-          </TouchableOpacity>
-        ))
-      ) : (
-        <TextInput
-          style={styles.textInput}
-          value={selectedAnswer}
-          onChangeText={setSelectedAnswer}
-          editable={selectedAnswer === null}
+      <View style={styles.container}>
+        <Text style={styles.header}>{test.title}</Text>
+
+        <ProgressIndicator
+            totalQuestions={questions.length}
+            currentQuestionIndex={currentQuestionIndex}
+            onPress={(index) => {
+              setCurrentQuestionIndex(index);
+              setSelectedAnswerId(null);
+            }}
         />
-      )}
-      {selectedAnswer !== null && (
-        <>
-          <Text style={styles.resultText}>
-            {selectedAnswer === currentQuestion.correctAnswer ? 'правильне рішення!' : 'Wrong!'} The correct answer is: {currentQuestion.correctAnswer}
-          </Text>
-          <Button
-            title="показати додаткову інформацію"
-            onPress={() => setShowAdditionalInfo(true)}
-            disabled={showAdditionalInfo}
-          />
-          {showAdditionalInfo && <Text style={styles.additionalInfoText}>{currentQuestion.additionalInfo}</Text>}
-          <Button title="Закрити" onPress={handleNextQuestion} />
-        </>
-      )}
-    </View>
+
+        <Text style={styles.questionText}>{currentQuestion.text}</Text>
+
+        {answers.map((ans) => (
+            <TouchableOpacity
+                key={ans.id}
+                style={[
+                  styles.answerButton,
+                  selectedAnswerId === ans.id && (ans.correct ? styles.correctAnswer : styles.wrongAnswer),
+                ]}
+                disabled={selectedAnswerId !== null}
+                onPress={() => onAnswerSelect(ans)}
+            >
+              <Text style={styles.answerText}>{ans.text}</Text>
+            </TouchableOpacity>
+        ))}
+
+        {selectedAnswerId && (
+            <View style={{ marginTop: 20 }}>
+              <Button title={currentQuestionIndex + 1 === questions.length ? "Finish" : "Next"} onPress={onNext} />
+            </View>
+        )}
+      </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
+  container: { flex: 1, padding: 20 },
+  header: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+  questionText: { fontSize: 18, marginVertical: 15 },
+  answerButton: {
+    padding: 15,
+    borderRadius: 8,
+    backgroundColor: '#ddd',
+    marginBottom: 10,
   },
-  questionContainer: {
-    marginVertical: 20,
-    padding: 20,
-    backgroundColor: 'lightgray',
-    borderRadius: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-  questionText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  optionButton: {
-    borderWidth: 1,
-    borderColor: 'black',
-    borderRadius: 5,
-    padding: 10,
-    marginVertical: 5,
-    width: '100%',
-    alignItems: 'center',
-  },
-  selectedOption: {
-    backgroundColor: 'lightblue',
-  },
-  optionText: {
-    fontSize: 16,
-  },
-  resultText: {
-    marginTop: 20,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  additionalInfoText: {
-    marginTop: 20,
-    fontSize: 16,
-  },
-  textInput: {
-    borderWidth: 1,
-    padding: 10,
-    marginVertical: 10,
-    width: '80%',
-  },
+  answerText: { fontSize: 16 },
+  correctAnswer: { backgroundColor: 'green' },
+  wrongAnswer: { backgroundColor: 'red' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });
 
 export default QuestionScreen;
